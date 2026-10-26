@@ -59,6 +59,7 @@ private val sections = listOf(
     "front" to ("Front page" to "首页"),
     "look" to ("Look" to "外观"),
     "saver" to ("Screen saver" to "屏保"),
+    "nowplaying" to ("Now playing" to "播放"),
     "about" to ("About" to "关于"),
 )
 
@@ -126,6 +127,7 @@ fun SettingsScreen(model: EveningViewModel, state: UiState, design: Design, sche
                 "front" -> FrontPanel(model, state, design, scheme, menu.getValue("front"))
                 "look" -> LookPanel(model, state, design, scheme, menu.getValue("look"))
                 "saver" -> SaverPanel(model, state, design, scheme, menu.getValue("saver"))
+                "nowplaying" -> NowPlayingPanel(model, state, design, scheme, menu.getValue("nowplaying"))
                 else -> AboutPanel(design, scheme, menu.getValue("about"))
             }
         }
@@ -395,6 +397,38 @@ private fun SaverPanel(model: EveningViewModel, state: UiState, design: Design, 
     SettingRow("Background", "", PhotoLibrary.modeLabel(state.photoMode), design, scheme, menu, emptyList(), { model.cyclePhotoMode() })
     Hair(scheme)
     SettingRow("Background folder", "", if (state.photoReadable) "Folder" else "Off", design, scheme, menu, emptyList(), { model.requestPhotoRead() })
+}
+
+@Composable
+private fun NowPlayingPanel(model: EveningViewModel, state: UiState, design: Design, scheme: SchemeTokens, menu: FocusRequester) {
+    PanelTitle("Now playing", "播放", "A strip at the top of the page while music plays or is paused.", design, scheme)
+    SettingRow(
+        "Show the strip",
+        "",
+        if (state.nowPlayingOn) "On" else "Off",
+        design, scheme, menu, emptyList(),
+        { model.setNowPlayingOn(!state.nowPlayingOn) },
+    )
+    Hair(scheme)
+    SettingRow(
+        "Notification access",
+        if (state.nowPlayingAccess) "" else "one time",
+        if (state.nowPlayingAccess) "Granted" else "Not granted",
+        design, scheme, menu, emptyList(),
+        { model.openNowPlayingAccess() },
+    )
+    Hair(scheme)
+    Spacer(Modifier.height(12.tvDp()))
+    val help = if (state.nowPlayingAccess) {
+        "Any app that plays through the system media session shows here. OK on Access opens the system screen if you want to withdraw it. The page does not dim while music plays."
+    } else {
+        "Android lets an app see what other apps are playing only after you allow it once. OK on Notification access opens that screen. Turn Clean Launch on there. Without it the strip stays hidden."
+    }
+    BasicText(help, maxLines = 4, style = TextStyle(color = scheme.muted, fontFamily = design.faces.ui, fontSize = 26.tvSp(), lineHeight = 34.tvSp()))
+    if (state.nowPlayingNote.isNotBlank()) {
+        Spacer(Modifier.height(12.tvDp()))
+        BasicText(state.nowPlayingNote, maxLines = 4, style = TextStyle(color = scheme.ink, fontFamily = design.faces.ui, fontSize = 24.tvSp(), lineHeight = 32.tvSp()))
+    }
 }
 
 @Composable

@@ -85,6 +85,7 @@ fun FolioFront(
     val visible = others.drop(window).take(APP_VISIBLE)
     val appFocus = remember(visible.map { it.id }, window) { visible.associate { it.id to FocusRequester() } }
     val resting = state.debugFocus == "rest"
+    val strip = remember { NowPlayingFocus() }
     LaunchedEffect(state.focusToken, state.overlay, state.dimmed, starred, others, state.debugFocus) {
         if (state.dimmed || resting || state.overlay != Overlay.None) return@LaunchedEffect
         delay(40)
@@ -95,7 +96,7 @@ fun FolioFront(
         runCatching { target.requestFocus() }
     }
     Box(Modifier.fillMaxSize()) {
-        Header(model, state, design, scheme, edit, starFocus.values.firstOrNull() ?: appFocus.values.firstOrNull() ?: edit, resting)
+        Header(model, state, design, scheme, edit, starFocus.values.firstOrNull() ?: appFocus.values.firstOrNull() ?: edit, resting, strip)
         Box(
             Modifier
                 .offset(96.tvDp(), 176.tvDp())
@@ -137,6 +138,7 @@ private fun Header(
     edit: FocusRequester,
     down: FocusRequester,
     resting: Boolean,
+    strip: NowPlayingFocus,
 ) {
     Row(
         Modifier.offset(96.tvDp(), 66.tvDp()).width(1728.tvDp()).height(84.tvDp()),
@@ -163,7 +165,17 @@ private fun Header(
             )
         }
         Spacer(Modifier.weight(1f))
-        EditLink(model, state, design, scheme, edit, down, resting)
+        val playing = state.nowPlaying
+        if (playing != null) {
+            NowPlayingStrip(
+                playing, model, state, design, scheme, strip, resting,
+                toRight = edit,
+                toDown = down.takeIf { it !== edit },
+                modifier = Modifier.width(600.tvDp()),
+            )
+            Spacer(Modifier.weight(1f))
+        }
+        EditLink(model, state, design, scheme, edit, down, resting, if (playing != null) strip.next else null)
     }
 }
 
@@ -176,11 +188,12 @@ private fun EditLink(
     edit: FocusRequester,
     down: FocusRequester,
     resting: Boolean,
+    left: FocusRequester? = null,
 ) {
     var focused by remember { mutableStateOf(false) }
     val show = focused && !resting
     Row(
-        Modifier.tvFocus(edit, { focused = it }, { model.openSettings() }, toDown = down),
+        Modifier.tvFocus(edit, { focused = it }, { model.openSettings() }, toLeft = left, toDown = down),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (show) PencilTick(scheme, Modifier.height(36.tvDp()))

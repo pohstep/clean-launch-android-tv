@@ -27,6 +27,9 @@ import app.cleanlaunch.tv.data.HeadlineClient
 import app.cleanlaunch.tv.data.HomeApp
 import app.cleanlaunch.tv.data.IndexFile
 import app.cleanlaunch.tv.data.InstalledApp
+import app.cleanlaunch.tv.data.NowPlayingHub
+import app.cleanlaunch.tv.data.NowPlayingInfo
+import app.cleanlaunch.tv.data.NowPlayingSource
 import app.cleanlaunch.tv.data.LiveForecast
 import app.cleanlaunch.tv.data.MarketHours
 import app.cleanlaunch.tv.data.PhotoEntry
@@ -147,6 +150,11 @@ data class UiState(
     val slotSeconds: Int = SlotPhotos.DEFAULT_SECONDS,
     /** App row to restore after a pin menu action, so focus does not fall onto the section list. */
     val focusHoldId: String? = null,
+    /** The media session in front, or null when none is playing or paused, or when the strip is off. */
+    val nowPlaying: NowPlayingInfo? = null,
+    val nowPlayingOn: Boolean = true,
+    val nowPlayingAccess: Boolean = false,
+    val nowPlayingNote: String = "",
 )
 
 class EveningViewModel(app: Application) : AndroidViewModel(app) {
@@ -187,6 +195,8 @@ class EveningViewModel(app: Application) : AndroidViewModel(app) {
     private var lastIndexJson: String? = null
     private val indexGeneration = AtomicInteger()
     private val indexLock = Any()
+
+    private val nowPlayingSource = NowPlayingSource(app) { info -> onNowPlaying(info) }
 
     var state = initial()
         private set
@@ -232,11 +242,85 @@ class EveningViewModel(app: Application) : AndroidViewModel(app) {
             )
         }
         refreshPhotoFolder()
+        NowPlayingHub.connected = { Handler(Looper.getMainLooper()).post { refreshNowPlaying() } }
+        refreshNowPlaying()
     }
 
     override fun onCleared() {
+        NowPlayingHub.connected = null
+        nowPlayingSource.stop()
         runCatching { getApplication<Application>().contentResolver.unregisterContentObserver(photoObserver) }
         super.onCleared()
+    }
+
+    // ---- now playing ----
+
+    /** Re-reads the access grant and the on/off switch, then starts or stops the media follower. */
+    fun refreshNowPlaying() {
+        val context = getApplication<Application>()
+        val access = NowPlayingSource.hasAccess(context)
+        val on = store.nowPlayingOn
+        var started = false
+        if (on && access) started = nowPlayingSource.start() else nowPlayingSource.stop()
+        val note = if (started || !on) "" else state.nowPlayingNote
+        if (state.nowPlayingAccess != access || state.nowPlayingOn != on || state.nowPlayingNote != note) {
+            state = state.copy(nowPlayingAccess = access, nowPlayingOn = on, nowPlayingNote = note)
+            publish()
+        }
+    }
+
+    private fun onNowPlaying(info: NowPlayingInfo?) {
+        val before = state.nowPlaying
+        var next = state.copy(nowPlaying = info)
+        if (info?.playing == true && next.dimmed) {
+            // Music started while the page was dim. Light it, as a key press would.
+            next = next.copy(dimmed = false, overlay = Overlay.None, menuAppId = null, previewSchemeId = null, focusToken = next.focusToken + 1)
+        }
+        if (info == null && next.focusZone == "np") {
+            // The strip went away under the focus. Hand it back to the page.
+            next = next.copy(focusZone = "app", focusToken = next.focusToken + 1)
+        }
+        state = next
+        if (before?.playing == true && info?.playing != true) noteInput()
+        publish()
+    }
+
+    fun setNowPlayingOn(on: Boolean) {
+        store.nowPlayingOn = on
+        state = state.copy(nowPlayingOn = on, nowPlayingNote = "")
+        publish()
+        refreshNowPlaying()
+    }
+
+    fun nowPlayingPrevious() = nowPlayingSource.previous()
+
+    fun nowPlayingToggle() = nowPlayingSource.toggle()
+
+    fun nowPlayingNext() = nowPlayingSource.next()
+
+    /** Opens the system screen where notification access is granted. */
+    fun openNowPlayingAccess() {
+        val context = getApplication<Application>()
+        val tries = listOf(
+            Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
+            Intent("android.settings.NOTIFICATION_LISTENER_DETAIL_SETTINGS").putExtra(
+                Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
+                NowPlayingSource.listenerId(context),
+            ),
+        )
+        for (intent in tries) {
+            try {
+                context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                return
+            } catch (error: Throwable) {
+                Log.i(TAG, "Notification access screen refused", error)
+            }
+        }
+        state = state.copy(
+            nowPlayingNote = "This television has no access screen. From a computer: " +
+                "adb shell cmd notification allow_listener ${NowPlayingSource.listenerId(context)}",
+        )
+        publish()
     }
 
     fun setForeground(on: Boolean) {
@@ -1057,7 +1141,9 @@ class EveningViewModel(app: Application) : AndroidViewModel(app) {
             }
         }
         val idle = state.idleMinutes
-        if (idle > 0 && !state.dimmed && state.debugFocus == null) {
+        // Music in front keeps the page lit. Paused or stopped, the idle timer carries on as before.
+        val musicPlaying = state.nowPlaying?.playing == true
+        if (idle > 0 && !state.dimmed && state.debugFocus == null && !musicPlaying) {
             val elapsed = SystemClock.elapsedRealtime() - lastInputMs
             if (elapsed >= idle * 60_000L) {
                 state = state.copy(dimmed = true, overlay = Overlay.None, menuAppId = null, previewSchemeId = null)

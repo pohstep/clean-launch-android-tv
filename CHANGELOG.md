@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2
+
+- A Now Playing strip sits in the header while any app has a media session playing or paused: small cover, title, artist, a thin progress line, and Previous, Play or Pause, Next on the D-pad. It uses the colours and typefaces of the active scheme. Nothing is drawn when no session is active.
+- The strip follows any app that publishes a media session (Apple Music Web, NetEase Cloud Music, Spotify, and others) and prefers the one that started playing last.
+- The page does not dim while a session is playing, and the screen is kept awake. Paused or stopped, the idle dim comes back after the usual time.
+- Settings, Now playing: a switch for the strip, and a button to the system notification-access screen. The access is granted once. Without it nothing is shown and nothing errors.
+
 ## 1.1.1
 
 - Settings actions for an app (Pin, Unpin, Rename, Hide, Show, Move) run from the D-pad and from Enter.

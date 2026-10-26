@@ -135,6 +135,10 @@ class EveningStore(context: Context) {
         get() = prefs.getInt(KEY_LAYOUT, 0)
         set(value) = prefs.edit().putInt(KEY_LAYOUT, value).apply()
 
+    var nowPlayingOn: Boolean
+        get() = prefs.getBoolean(KEY_NOW_PLAYING, true)
+        set(value) = prefs.edit().putBoolean(KEY_NOW_PLAYING, value).apply()
+
     var tickerChinese: Boolean
         get() = prefs.getBoolean(KEY_TICKER_ZH, false)
         set(value) = prefs.edit().putBoolean(KEY_TICKER_ZH, value).apply()
@@ -385,6 +389,7 @@ class EveningStore(context: Context) {
         private const val KEY_SECTION = "settingsSection"
         private const val KEY_LAYOUT = "layoutVersion"
         private const val KEY_TICKER_ZH = "tickerChinese"
+        private const val KEY_NOW_PLAYING = "nowPlayingOn"
         private const val KEY_FRONT_PHOTO = "frontPhoto"
         private const val KEY_SLOT_SEC = "slotSeconds"
         private const val KEY_INPUT_NAMES = "inputNames"

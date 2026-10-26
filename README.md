@@ -24,6 +24,7 @@ The screenshots are from an emulator with the bundled sample photograph, no city
 - HDMI tiles. Tile 1 opens port 1. The label comes from the television. AV and the tuner stay hidden until Settings shows them.
 - An index of the launchable apps on the set. Pin, rename, hide, or reorder them from Settings. A bundled X opens https://x.com. No other site shortcuts are bundled.
 - A dim clock after idle. Any key wakes it.
+- A Now Playing strip in the header while an app plays music: cover, title, artist, and Previous, Play or Pause, Next. The page stays lit while music plays. See [Now playing](#now-playing).
 
 Package id: `app.cleanlaunch.tv`.
 
@@ -52,6 +53,18 @@ If the set still returns to the stock launcher, give Clean Launch the Home role:
 adb shell cmd role add-role-holder android.app.role.HOME app.cleanlaunch.tv
 ```
 
+## Now playing
+
+The strip reads the media sessions that other apps publish. Android only allows that after the user grants notification access, once. Clean Launch reads no notifications; the access is the only way the system lets an app see media sessions.
+
+On the television: Settings, Now playing, OK on Notification access, then turn Clean Launch on. From a computer:
+
+```sh
+adb shell cmd notification allow_listener app.cleanlaunch.tv/app.cleanlaunch.tv.data.NowPlayingListener
+```
+
+Without the grant the strip is not drawn and nothing else changes. Settings, Now playing, Show the strip turns it off. While a session is playing the page does not dim and the screen is kept awake.
+
 ## Photographs
 
 The slot reads `/sdcard/Android/data/app.cleanlaunch.tv/files/photos/`. The folder is created on first run and needs no storage permission. JPG, PNG, and WEBP are shown as they are. HEIC is converted by the script when `sips` is available.
@@ -74,12 +87,13 @@ Open Settings from the top of the home page, or hold OK on an app.
 - **Apps.** OK on a row opens Pin or Unpin, Rename, Hide or Show, and Move. Up and Down reorder while a row says Moving. Six apps can be pinned.
 - **Front page.** City (a blank name returns to automatic), weather, ticker symbols, the photograph interval, two custom lines, and whether weather and stocks are shown. News is not on the front page.
 - **Look.** Paper, Night Edition, or Late Edition. Focus previews a theme. OK keeps it.
-- **Screen saver.** Dim after a number of minutes, or off. The dim page is the time and the weather on a dark gradient.
+- **Screen saver.** Dim after a number of minutes, or off. The dim page is the time and the weather on a dark gradient. Music playing keeps it from dimming.
+- **Now playing.** Turn the strip on or off, and open the system screen that grants notification access.
 - **About.** Version and the typefaces.
 
 ## Privacy
 
-Clean Launch has no account, no analytics, and no ads. It does not use Google Play services.
+Clean Launch has no account, no analytics, and no ads. It does not use Google Play services. Track titles and covers from the media session stay on the television.
 
 A city you type stays on the television. Automatic mode asks a public IP service (ip-api.com, then ipinfo.io, then api.ip.sb) for a city, and uses it only when that city agrees with the television's timezone or country. If it does not agree, the weather block stays empty.
 

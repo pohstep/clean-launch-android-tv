@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
@@ -27,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -140,6 +142,7 @@ class MainActivity : ComponentActivity() {
         model.refreshInputs()
         model.noteInput()
         model.refreshSlotPhotos()
+        model.refreshNowPlaying()
         if (PhotoFolder.canRead(this)) model.refreshPhotoFolder()
         else if (!model.photoReadAsked()) model.requestPhotoRead()
     }
@@ -206,6 +209,13 @@ private fun EveningRoot(model: EveningViewModel) {
         onDispose(stop)
     }
     val scheme = model.design.scheme(state.schemeId)
+    // While music plays, the panel stays awake so the TV's own screen saver does not start.
+    val activity = LocalContext.current as? Activity
+    val musicPlaying = state.nowPlaying?.playing == true
+    DisposableEffect(musicPlaying, activity) {
+        if (musicPlaying) activity?.window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose { activity?.window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) }
+    }
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val scale = if (maxWidth > 0.dp) maxWidth / 960.dp else 1f
         CompositionLocalProvider(LocalPaperScale provides scale) {

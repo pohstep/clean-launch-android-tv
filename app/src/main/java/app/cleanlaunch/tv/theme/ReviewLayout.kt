@@ -59,6 +59,7 @@ object ReviewLayout {
         "front" to "Front page",
         "look" to "Look",
         "saver" to "Screen saver",
+        "nowplaying" to "Now playing",
         "about" to "About",
     )
 
